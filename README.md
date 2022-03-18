@@ -4,6 +4,7 @@
 [![CICD](https://github.com/mcataford/slack-status-cli/actions/workflows/main.yml/badge.svg)](https://github.com/mcataford/slack-status-cli/actions/workflows/main.yml)
 [![codecov](https://codecov.io/gh/mcataford/slack-status-cli/branch/main/graph/badge.svg?token=10VP1ZDBHR)](https://codecov.io/gh/mcataford/slack-status-cli)
 [![python-support](https://img.shields.io/badge/python-%5E3.7-brightgreen)]()
+[![latest-release](https://img.shields.io/github/v/release/mcataford/slack-status-cli?include_prereleases&label=latest%20release&sort=semver)]()
 
 ## Overview
 
@@ -36,4 +37,5 @@ and/or CLI args will override these defaults if given).
 ## Installation
 
 You can clone this repository and build from source. This project uses `poetry`, as such `poetry build` will prepare a
-Wheel that you can install directly.
+Wheel that you can install directly. Build artifacts for released versions are also available under
+[releases](https://github.com/mcataford/slack-status-cli/releases).
