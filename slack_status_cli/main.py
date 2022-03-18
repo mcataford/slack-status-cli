@@ -26,13 +26,18 @@ import json
 import pathlib
 import sys
 
+# Debug mode modifies the log level used for reporting. If truthy,
+# extra information is included in each run to diagnose common
+# issues.
+DEBUG = bool(os.environ.get("DEBUG", False))
+
 # Logger setup
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.propagate = False
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
 log_handler = logging.StreamHandler()
-log_handler.setLevel(level=logging.INFO)
+log_handler.setLevel(level=logging.DEBUG if DEBUG else logging.INFO)
 log_handler.setFormatter(logging.Formatter(fmt="%(message)s"))
 logger.addHandler(log_handler)
 
@@ -54,8 +59,6 @@ Configuration = collections.namedtuple(
     ],
     defaults=[{}, Defaults()],
 )
-
-API_URL = "https://slack.com/api/users.profile.set"
 
 
 def update_status(
@@ -79,7 +82,9 @@ def update_status(
         "Authorization": f"Bearer {token}",
     }
     request = urllib.request.Request(
-        API_URL, urllib.parse.urlencode(payload).encode(), method="POST"
+        "https://slack.com/api/users.profile.set",
+        urllib.parse.urlencode(payload).encode(),
+        method="POST",
     )
     for header_key, header_value in headers.items():
         request.add_header(header_key, header_value)
@@ -88,13 +93,16 @@ def update_status(
     response_status = response.status
     response_data = response.read()
 
+    logger.debug("API request: %s", str(payload))
+    logger.debug("API response: %s", str(response_data))
+
     if response_status != 200:
-        raise Exception("Failed to set status.")
+        raise Exception("Failed to set status due to an API error.")
 
     response_data = json.loads(response_data)
 
     if not response_data["ok"]:
-        raise Exception("Failed to set status.")
+        raise Exception("Failed to set status due to an API error.")
 
 
 def parse_input(known_presets: typing.List[str]) -> ParsedUserInput:
@@ -171,6 +179,8 @@ def load_configuration() -> Configuration:
     try:
         parsed_config = json.loads(config)
 
+        logger.debug("Loaded configuration: %s", parsed_config)
+
         preset_config = parsed_config.get("presets", {})
         defaults_config = parsed_config.get("defaults", {})
 
@@ -237,7 +247,7 @@ def run():
         )
         logger.info("✨ Status set to '%s' %s", new_status, new_expiry)
     except Exception as e:
-        logger.exception("Could not set status: %s", str(e))
+        logger.error("🔥 Could not set status: %s", str(e))
         sys.exit(1)
 
 
