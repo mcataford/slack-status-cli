@@ -36,6 +36,4 @@ and/or CLI args will override these defaults if given).
 
 ## Installation
 
-You can clone this repository and build from source. This project uses `poetry`, as such `poetry build` will prepare a
-Wheel that you can install directly. Build artifacts for released versions are also available under
-[releases](https://github.com/mcataford/slack-status-cli/releases).
+You can clone this repository and build from source or use pre-built artifacts. To build yourself, you can `. script/bootstrap && python -m build`. Build artifacts for released versions are also available under [releases](https://github.com/mcataford/slack-status-cli/releases).
