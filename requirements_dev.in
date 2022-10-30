@@ -1,0 +1,9 @@
+-c requirements.txt
+
+build
+toml
+pytest
+black
+pylint
+pytest-cov
+syrupy

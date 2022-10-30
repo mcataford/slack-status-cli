@@ -1,7 +1,7 @@
 # name: test_sends_request_to_slack_api_on_success
-  <class 'dict'> {
-    'profile': <class 'list'> [
+  dict({
+    'profile': list([
       "{'status_text': 'test', 'status_emoji': '', 'status_expiration': 0}",
-    ],
-  }
----
+    ]),
+  })
+# ---
