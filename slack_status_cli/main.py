@@ -23,23 +23,12 @@ import re
 import json
 import pathlib
 import sys
+import math
 
 import client as slack_client
+import logger as log
 
-# Debug mode modifies the log level used for reporting. If truthy,
-# extra information is included in each run to diagnose common
-# issues.
-DEBUG = bool(os.environ.get("DEBUG", False))
-
-# Logger setup
-logging.basicConfig()
-logger = logging.getLogger(__name__)
-logger.propagate = False
-logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
-log_handler = logging.StreamHandler()
-log_handler.setLevel(level=logging.DEBUG if DEBUG else logging.INFO)
-log_handler.setFormatter(logging.Formatter(fmt="%(message)s"))
-logger.addHandler(log_handler)
+logger = log.get_logger(__name__)
 
 ParsedUserInput = collections.namedtuple(
     "ParsedUserInput", ["text", "icon", "duration", "preset", "quiet"]
@@ -199,7 +188,16 @@ def run():
         )
 
         if quiet:
-            client.set_do_not_disturb(5)
+            quiet_duration = math.ceil(
+                (
+                    datetime.datetime.fromtimestamp(status_expiration)
+                    - datetime.datetime.now()
+                ).seconds
+                / 60
+            )
+            client.set_do_not_disturb(quiet_duration)
+        else:
+            client.set_do_not_disturb(0)
 
         new_status = (
             "%s %s" % (status_icon, status_text) if status_icon else status_text

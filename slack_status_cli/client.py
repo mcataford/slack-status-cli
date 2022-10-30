@@ -1,10 +1,12 @@
 import urllib.request
 import urllib.parse
 import typing
-import logging
 import json
+import os
 
-logger = logging.getLogger(__name__)
+import logger as log
+
+logger = log.get_logger(__name__)
 
 
 class SlackClient:
@@ -70,7 +72,6 @@ class SlackClient:
 
         Reference: https://api.slack.com/methods/dnd.setSnooze
         """
-
         payload = {"num_minutes": duration_minutes}
 
         self._post("https://slack.com/api/dnd.setSnooze", payload)
