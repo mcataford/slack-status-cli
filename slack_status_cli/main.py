@@ -42,10 +42,10 @@ log_handler.setFormatter(logging.Formatter(fmt="%(message)s"))
 logger.addHandler(log_handler)
 
 ParsedUserInput = collections.namedtuple(
-    "ParsedUserInput", ["text", "icon", "duration", "preset"]
+    "ParsedUserInput", ["text", "icon", "duration", "preset", "quiet"]
 )
 
-StatusPreset = collections.namedtuple("StatusPreset", ["text", "icon"])
+StatusPreset = collections.namedtuple("StatusPreset", ["text", "icon", "quiet"])
 Defaults = collections.namedtuple(
     "Defaults",
     [("icon"), ("duration")],
@@ -70,6 +70,8 @@ def update_status(
     """
     Sets the Slack status of the given user to <status>, optionally with <emoticon> if provided.
     If an expiration is provided, the status is set to expire after this time.
+
+    Reference: https://api.slack.com/methods/users.profile.set
     """
     payload = {
         "profile": {
@@ -85,9 +87,8 @@ def update_status(
         "https://slack.com/api/users.profile.set",
         urllib.parse.urlencode(payload).encode(),
         method="POST",
+        headers=headers,
     )
-    for header_key, header_value in headers.items():
-        request.add_header(header_key, header_value)
 
     response = urllib.request.urlopen(request)
     response_status = response.status
@@ -103,6 +104,40 @@ def update_status(
 
     if not response_data["ok"]:
         raise Exception("Failed to set status due to an API error.")
+
+
+def set_do_not_disturb(token: str, duration_minutes: int):
+    """
+    Silences notifications, potentially with the specified duration.
+
+    Reference: https://api.slack.com/methods/dnd.setSnooze
+    """
+
+    payload = {"num_minutes": duration_minutes}
+    headers = {
+        "Authorization": f"Bearer {token}",
+    }
+    request = urllib.request.Request(
+        "https://slack.com/api/dnd.setSnooze",
+        urllib.parse.urlencode(payload).encode(),
+        method="POST",
+        headers=headers,
+    )
+
+    response = urllib.request.urlopen(request)
+    response_status = response.status
+    response_data = response.read()
+
+    logger.debug("API request: %s", str(payload))
+    logger.debug("API response: %s", str(response_data))
+
+    if response_status != 200:
+        raise Exception("Failed to set do-not-disturb due to an API error.")
+
+    response_data = json.loads(response_data)
+
+    if not response_data["ok"]:
+        raise Exception("Failed to set do-not-disturb due to an API error.")
 
 
 def parse_input(known_presets: typing.List[str]) -> ParsedUserInput:
@@ -130,11 +165,17 @@ def parse_input(known_presets: typing.List[str]) -> ParsedUserInput:
     set_parser.add_argument(
         "--preset", type=str, default=None, choices=known_presets, help="Preset to use"
     )
-
+    set_parser.add_argument(
+        "--quiet", type=bool, default=False, help="Silences notifications"
+    )
     args = parser.parse_args()
 
     return ParsedUserInput(
-        text=args.text, icon=args.icon, duration=args.duration, preset=args.preset
+        text=args.text,
+        icon=args.icon,
+        duration=args.duration,
+        preset=args.preset,
+        quiet=args.quiet,
     )
 
 
@@ -221,6 +262,7 @@ def run():
         status_expiration = get_expiration(
             args.duration or configuration.defaults.duration
         )
+        quiet = args.quiet
 
         if args.preset:
             preset = configuration.presets[args.preset]
@@ -233,6 +275,9 @@ def run():
             status_icon or configuration.defaults.icon,
             status_expiration,
         )
+
+        if quiet:
+            set_do_not_disturb(token, 5)
 
         new_status = (
             "%s %s" % (status_icon, status_text) if status_icon else status_text
