@@ -61,83 +61,73 @@ Configuration = collections.namedtuple(
 )
 
 
-def update_status(
-    token: str,
-    status: str,
-    emoticon: typing.Optional[str] = None,
-    expiration: typing.Optional[int] = None,
-):
-    """
-    Sets the Slack status of the given user to <status>, optionally with <emoticon> if provided.
-    If an expiration is provided, the status is set to expire after this time.
+class SlackClient:
+    _token: str
 
-    Reference: https://api.slack.com/methods/users.profile.set
-    """
-    payload = {
-        "profile": {
-            "status_text": status,
-            "status_emoji": emoticon or "",
-            "status_expiration": expiration or 0,
+    def __init__(self, token: str):
+        self._token = token
+
+    @property
+    def headers(self):
+        return {
+            "Authorization": f"Bearer {self._token}",
         }
-    }
-    headers = {
-        "Authorization": f"Bearer {token}",
-    }
-    request = urllib.request.Request(
-        "https://slack.com/api/users.profile.set",
-        urllib.parse.urlencode(payload).encode(),
-        method="POST",
-        headers=headers,
-    )
 
-    response = urllib.request.urlopen(request)
-    response_status = response.status
-    response_data = response.read()
+    def _post(self, url: str, payload):
+        request = urllib.request.Request(
+            url,
+            urllib.parse.urlencode(payload).encode(),
+            method="POST",
+            headers=self.headers,
+        )
 
-    logger.debug("API request: %s", str(payload))
-    logger.debug("API response: %s", str(response_data))
+        response = urllib.request.urlopen(request)
+        response_status = response.status
+        response_data = response.read()
 
-    if response_status != 200:
-        raise Exception("Failed to set status due to an API error.")
+        logger.debug("API request: %s", str(payload))
+        logger.debug("API response: %s", str(response_data))
 
-    response_data = json.loads(response_data)
+        if response_status != 200:
+            raise Exception("Failed due to an API error.")
 
-    if not response_data["ok"]:
-        raise Exception("Failed to set status due to an API error.")
+        response_data = json.loads(response_data)
 
+        if not response_data["ok"]:
+            raise Exception("Failed due to an API error.")
 
-def set_do_not_disturb(token: str, duration_minutes: int):
-    """
-    Silences notifications, potentially with the specified duration.
+    def update_status(
+        self,
+        status: str,
+        emoticon: typing.Optional[str] = None,
+        expiration: typing.Optional[int] = None,
+    ):
+        """
+        Sets the Slack status of the given user to <status>, optionally with <emoticon> if provided.
+        If an expiration is provided, the status is set to expire after this time.
 
-    Reference: https://api.slack.com/methods/dnd.setSnooze
-    """
+        Reference: https://api.slack.com/methods/users.profile.set
+        """
+        payload = {
+            "profile": {
+                "status_text": status,
+                "status_emoji": emoticon or "",
+                "status_expiration": expiration or 0,
+            }
+        }
 
-    payload = {"num_minutes": duration_minutes}
-    headers = {
-        "Authorization": f"Bearer {token}",
-    }
-    request = urllib.request.Request(
-        "https://slack.com/api/dnd.setSnooze",
-        urllib.parse.urlencode(payload).encode(),
-        method="POST",
-        headers=headers,
-    )
+        self._post("https://slack.com/api/users.profile.set", payload)
 
-    response = urllib.request.urlopen(request)
-    response_status = response.status
-    response_data = response.read()
+    def set_do_not_disturb(self, duration_minutes: int):
+        """
+        Silences notifications, potentially with the specified duration.
 
-    logger.debug("API request: %s", str(payload))
-    logger.debug("API response: %s", str(response_data))
+        Reference: https://api.slack.com/methods/dnd.setSnooze
+        """
 
-    if response_status != 200:
-        raise Exception("Failed to set do-not-disturb due to an API error.")
+        payload = {"num_minutes": duration_minutes}
 
-    response_data = json.loads(response_data)
-
-    if not response_data["ok"]:
-        raise Exception("Failed to set do-not-disturb due to an API error.")
+        self._post("https://slack.com/api/dnd.setSnooze", payload)
 
 
 def parse_input(known_presets: typing.List[str]) -> ParsedUserInput:
@@ -257,6 +247,8 @@ def run():
         if not token:
             raise Exception("Slack token not provided.")
 
+        client = SlackClient(token=token)
+
         status_text = args.text
         status_icon = args.icon
         status_expiration = get_expiration(
@@ -269,15 +261,14 @@ def run():
             status_text = preset.text
             status_icon = preset.icon
 
-        update_status(
-            token,
+        client.update_status(
             status_text,
             status_icon or configuration.defaults.icon,
             status_expiration,
         )
 
         if quiet:
-            set_do_not_disturb(token, 5)
+            client.set_do_not_disturb(5)
 
         new_status = (
             "%s %s" % (status_icon, status_text) if status_icon else status_text
