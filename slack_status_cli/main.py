@@ -15,7 +15,6 @@ SLACK_TOKEN=XXX slack-status-cli set --preset <preset-name> --duration <duration
 
 import typing
 import os
-import logging
 import argparse
 import datetime
 import collections

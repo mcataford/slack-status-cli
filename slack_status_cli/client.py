@@ -2,7 +2,6 @@ import urllib.request
 import urllib.parse
 import typing
 import json
-import os
 
 import logger as log
 
@@ -10,6 +9,10 @@ logger = log.get_logger(__name__)
 
 
 class SlackClient:
+    """
+    Lightweight abstraction around Slack's REST API.
+    """
+
     _token: str
 
     def __init__(self, token: str):
