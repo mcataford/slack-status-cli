@@ -11,4 +11,4 @@ fi
 
 source ./$PROJECT.venv/bin/activate
 
-pip-sync ./requirements_dev.txt
+pip-sync ./requirements.txt ./requirements_dev.txt
