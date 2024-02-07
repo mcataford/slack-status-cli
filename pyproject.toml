@@ -2,7 +2,7 @@
 name = "slack-status-cli"
 version = "0.1.0"
 description = "Tooling to set your Slack status on the fly without having to click around"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 readme = "README.md"
 [[project.authors]]
 name = "Marc Cataford"
