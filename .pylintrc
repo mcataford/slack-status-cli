@@ -1,7 +1,8 @@
 [MESSAGES CONTROL]
-disable=consider-using-f-string,
-        broad-except,
+disable=broad-except,
+        broad-exception-raised,
+        consider-using-f-string,
+        consider-using-with,
         invalid-name,
-        missing-module-docstring,
         missing-function-docstring,
-        consider-using-with
+        missing-module-docstring,

@@ -1,3 +1,4 @@
+# serializer version: 1
 # name: test_sends_request_to_slack_api_on_success
   dict({
     'profile': list([
