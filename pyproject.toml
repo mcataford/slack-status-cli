@@ -2,8 +2,10 @@
 name = "slack-status-cli"
 version = "0.1.0"
 description = "Tooling to set your Slack status on the fly without having to click around"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 readme = "README.md"
+dependencies = []
+
 [[project.authors]]
 name = "Marc Cataford"
 email = "mcat@riseup.net"
@@ -11,6 +13,17 @@ email = "mcat@riseup.net"
 [project.urls]
 Homepage = "https://github.com/mcataford/slack-status-cli"
 "Bug Tracker" = "https://github.com/mcataford/slack-status-cli/issues"
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "toml",
+    "pytest",
+    "black",
+    "pylint",
+    "pytest-cov",
+    "syrupy",
+]
 
 [tool.setuptools]
 packages = [ "slack_status_cli",]
