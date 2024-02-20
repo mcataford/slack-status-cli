@@ -13,11 +13,8 @@ With preset:
 SLACK_TOKEN=XXX slack-status-cli set --preset <preset-name> --duration <duration_description>
 """
 
-import urllib.request
-import urllib.parse
 import typing
 import os
-import logging
 import argparse
 import datetime
 import collections
@@ -25,27 +22,18 @@ import re
 import json
 import pathlib
 import sys
+import math
 
-# Debug mode modifies the log level used for reporting. If truthy,
-# extra information is included in each run to diagnose common
-# issues.
-DEBUG = bool(os.environ.get("DEBUG", False))
+import client as slack_client
+import logger as log
 
-# Logger setup
-logging.basicConfig()
-logger = logging.getLogger(__name__)
-logger.propagate = False
-logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
-log_handler = logging.StreamHandler()
-log_handler.setLevel(level=logging.DEBUG if DEBUG else logging.INFO)
-log_handler.setFormatter(logging.Formatter(fmt="%(message)s"))
-logger.addHandler(log_handler)
+logger = log.get_logger(__name__)
 
 ParsedUserInput = collections.namedtuple(
-    "ParsedUserInput", ["text", "icon", "duration", "preset"]
+    "ParsedUserInput", ["text", "icon", "duration", "preset", "quiet"]
 )
 
-StatusPreset = collections.namedtuple("StatusPreset", ["text", "icon"])
+StatusPreset = collections.namedtuple("StatusPreset", ["text", "icon", "quiet"])
 Defaults = collections.namedtuple(
     "Defaults",
     [("icon"), ("duration")],
@@ -59,50 +47,6 @@ Configuration = collections.namedtuple(
     ],
     defaults=[{}, Defaults()],
 )
-
-
-def update_status(
-    token: str,
-    status: str,
-    emoticon: typing.Optional[str] = None,
-    expiration: typing.Optional[int] = None,
-):
-    """
-    Sets the Slack status of the given user to <status>, optionally with <emoticon> if provided.
-    If an expiration is provided, the status is set to expire after this time.
-    """
-    payload = {
-        "profile": {
-            "status_text": status,
-            "status_emoji": emoticon or "",
-            "status_expiration": expiration or 0,
-        }
-    }
-    headers = {
-        "Authorization": f"Bearer {token}",
-    }
-    request = urllib.request.Request(
-        "https://slack.com/api/users.profile.set",
-        urllib.parse.urlencode(payload).encode(),
-        method="POST",
-    )
-    for header_key, header_value in headers.items():
-        request.add_header(header_key, header_value)
-
-    response = urllib.request.urlopen(request)
-    response_status = response.status
-    response_data = response.read()
-
-    logger.debug("API request: %s", str(payload))
-    logger.debug("API response: %s", str(response_data))
-
-    if response_status != 200:
-        raise Exception("Failed to set status due to an API error.")
-
-    response_data = json.loads(response_data)
-
-    if not response_data["ok"]:
-        raise Exception("Failed to set status due to an API error.")
 
 
 def parse_input(known_presets: typing.List[str]) -> ParsedUserInput:
@@ -130,11 +74,17 @@ def parse_input(known_presets: typing.List[str]) -> ParsedUserInput:
     set_parser.add_argument(
         "--preset", type=str, default=None, choices=known_presets, help="Preset to use"
     )
-
+    set_parser.add_argument(
+        "--quiet", type=bool, default=False, help="Silences notifications"
+    )
     args = parser.parse_args()
 
     return ParsedUserInput(
-        text=args.text, icon=args.icon, duration=args.duration, preset=args.preset
+        text=args.text,
+        icon=args.icon,
+        duration=args.duration,
+        preset=args.preset,
+        quiet=args.quiet,
     )
 
 
@@ -216,23 +166,37 @@ def run():
         if not token:
             raise Exception("Slack token not provided.")
 
+        client = slack_client.SlackClient(token=token)
+
         status_text = args.text
         status_icon = args.icon
         status_expiration = get_expiration(
             args.duration or configuration.defaults.duration
         )
+        quiet = args.quiet
 
         if args.preset:
             preset = configuration.presets[args.preset]
             status_text = preset.text
             status_icon = preset.icon
 
-        update_status(
-            token,
+        client.update_status(
             status_text,
             status_icon or configuration.defaults.icon,
             status_expiration,
         )
+
+        if quiet:
+            quiet_duration = math.ceil(
+                (
+                    datetime.datetime.fromtimestamp(status_expiration)
+                    - datetime.datetime.now()
+                ).seconds
+                / 60
+            )
+            client.set_do_not_disturb(quiet_duration)
+        else:
+            client.set_do_not_disturb(0)
 
         new_status = (
             "%s %s" % (status_icon, status_text) if status_icon else status_text
